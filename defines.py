@@ -2,7 +2,7 @@
 import time,os
 from pynput import keyboard
 import curses
-
+from random import randrange
 
 class snake:
     def __init__(self, x=0, y=0,direction="down"):
@@ -13,35 +13,9 @@ class snake:
         
 
 
+spawnFoodCoords = lambda xWidth, yWidth: (randrange(xWidth-1), randrange(yWidth-1))
 
-def currentScreen(snake,screenX,screenY,foodX,foodY):
-    screen = [["-"]*screenX for _ in range(screenY)]
-    screen[snake.y%screenY][snake.x%screenX] = "s"
-    screen[foodY][foodX] = "o"
-    return screen
 
-def printScreen(screen):
-    os.system('clear')
-    print('\n'.join(' '.join(map(str, row)) for row in screen),end="\r")
-   
-def on_press(key):
-    global mode
-    if key == keyboard.Key.up:
-        mode = "up"
-    elif key == keyboard.Key.down:
-        mode = "down"
-    elif key == keyboard.Key.left:
-        mode = "left"
-    elif key == keyboard.Key.right:
-        mode = "right"
-    
-
-def on_release(key):
-    print('{0} released'.format(
-        key))
-    if key == keyboard.Key.esc:
-        # Stop listener
-        return False
 
 
 
@@ -51,20 +25,33 @@ snakePlayer = snake()
 
 
 screen = curses.initscr()
-window = curses.newwin(10,10)
+max_y,max_x = screen.getmaxyx()
+window = curses.newwin(max_y,max_x)
 window.nodelay(1)
 directionDict: dict = {curses.KEY_RIGHT: "right", curses.KEY_LEFT:"left",
                         curses.KEY_UP:"up", curses.KEY_DOWN:"down"}
 
 
 window.keypad(True)
+curses.curs_set(0)
 
 
+prevSquares = []
+foodCoords = spawnFoodCoords(max_x,max_y)
 while True:
     char = window.getch()
     window.clear()
-    window.addch(snakePlayer.y%9, snakePlayer.x%9, "s")
     
+    window.addch(foodCoords[1]%(max_y-1), foodCoords[0]%(max_x-1), "0")
+
+    prevSquares.append( (snakePlayer.x,snakePlayer.y) )
+    if snakePlayer.length < len(prevSquares):
+        prevSquares.pop(0)
+
+    for i in prevSquares:
+        window.addch(i[1]%(max_y-1), i[0]%(max_x-1), "s")
+    
+
     if char == 113: break  # q
     elif char == curses.KEY_RIGHT: snakePlayer.direction = "right"
     elif char == curses.KEY_LEFT: snakePlayer.direction = "left"
@@ -76,8 +63,16 @@ while True:
     elif snakePlayer.direction == "left": snakePlayer.x -=1
     elif snakePlayer.direction == "right": snakePlayer.x +=1
 
+    if (snakePlayer.x,snakePlayer.y) in prevSquares:
+        curses.beep()
+        break
+    elif (snakePlayer.x%(max_x-1),snakePlayer.y%(max_y-1)) == foodCoords:
+        snakePlayer.length +=1
+        foodCoords = spawnFoodCoords(max_x,max_y)
+        curses.beep()
+
     curses.napms(50)
-    window.addstr(0,0,str(char))
+
 
 
     
